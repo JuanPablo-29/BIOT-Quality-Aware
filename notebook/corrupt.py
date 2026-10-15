@@ -65,10 +65,29 @@ def corrupt_jump(arr, channels, start, end, size):
     mask[channels, start:end] = True
     return corrupted_arr, mask
 
+def window_labels(mask, win=200):
+    # Trim the samples axis to a multiple of win.
+# Reshape (C, N) into (C, N // win, win).
+# Average over the last axis and compare to 0.5.
+    n_samples = mask.shape[1]
+    n_trimmed = n_samples - (n_samples % win)
+    mask_trimmed = mask[:, :n_trimmed]
+    mask_reshaped = mask_trimmed.reshape(mask.shape[0], -1, win)
+    mask_windowed = mask_reshaped.mean(axis=-1) > 0.5
+    return mask_windowed
+
 if __name__ == "__main__":
     t = Trial("data/A01T")   # your path
     arr = t.arr
-    #damaged, mask = corrupt_flatline(arr, [3, 4], 1000, 1600)
+    damaged, mask = corrupt_flatline(arr, [3, 4], 1000, 1600)
+    labels = window_labels(mask, win=200)
+    print(np.where(labels))
+    print(labels.sum())
+    damaged, mask = corrupt_flatline(arr, [3, 4], 1100, 1700)
+    labels = window_labels(mask, win=200)
+    print(np.where(labels))
+    print(labels.sum())
+
     # print(damaged[3, 1000:1600].std())
     # print(damaged[4, 1000:1600].std())
     # print(np.array_equal(damaged[~mask], arr[~mask]))
@@ -79,6 +98,6 @@ if __name__ == "__main__":
     # print(np.array_equal(damaged[~mask], arr[~mask]))
     # print(mask.sum() == 2 * 600)
 
-    damaged, mask = corrupt_jump(arr, [3, 4], 1000, 1600, size=3)
-    print(np.allclose((damaged - arr)[3:5, 1000:1600], 3 * arr[3,4][:, None]))
-    print(np.array_equal(damaged[~mask], arr[~mask]))
+    # damaged, mask = corrupt_jump(arr, [3, 4], 1000, 1600, size=3)
+    # print(np.allclose((damaged - arr)[3:5, 1000:1600], 3 * arr[3:5].std(axis=1)[:, None]))
+    # print(np.array_equal(damaged[~mask], arr[~mask]))
