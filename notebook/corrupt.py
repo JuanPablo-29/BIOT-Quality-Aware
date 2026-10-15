@@ -1,5 +1,8 @@
 import numpy as np
 from trial import Trial
+from detector import window_variance, detect, window_scores, window_labels
+
+
 
 def corrupt_flatline(arr, channels, start, end):
     """
@@ -65,56 +68,48 @@ def corrupt_jump(arr, channels, start, end, size):
     mask[channels, start:end] = True
     return corrupted_arr, mask
 
-def to_windows(arr, win=200):
-    """
-    Splits the input array into non-overlapping windows of specified size.
-
-    Parameters:
-    arr (numpy.ndarray): The input array of shape (n_channels, n_samples).
-    win (int): The size of each window.
-
-    Returns:
-    numpy.ndarray: The reshaped array of shape (n_channels, n_windows, win).
-    """
-    n_samples = arr.shape[1]
-    n_trimmed = n_samples - (n_samples % win)
-    arr_trimmed = arr[:, :n_trimmed]
-    arr_reshaped = arr_trimmed.reshape(arr.shape[0], -1, win)
-    return arr_reshaped
-
-def window_labels(mask, win=200):
-    mask_windowed = to_windows(mask, win=win).mean(axis=-1) > 0.5
-    return mask_windowed
-
-def window_variance(arr, win=200):
-    variance = to_windows(arr, win=win).var(axis=-1)
-    return variance
-
-def get_ratio(arr, damaged, channels):
-    clean_var = window_variance(arr)
-    dmg_var = window_variance(damaged)
-    ratio = dmg_var[channels] / clean_var[channels]
-    return ratio
+def evaluate(damaged, mask):
+    flag = detect(*window_scores(damaged))
+    labels = window_labels(mask)
+    recall = (flag & labels).sum() / labels.sum()
+    false_alarm = (flag & ~labels).sum() / (~labels).sum()
+    return recall, false_alarm
 
 if __name__ == "__main__":
+    # pass
     t = Trial("data/A01T")   # your path
     arr = t.arr
-    damaged, mask = corrupt_flatline(arr, [3, 4], 1000, 1600)
-    ratio = get_ratio(arr, damaged, [3, 4])
-    print(f"Flatline ratio: {np.round(ratio[:,5:8], 2)}")
 
-    damaged, mask = corrupt_noise(arr, [3, 4], 1000, 1600, level=3, seed=0)
-    ratio = get_ratio(arr, damaged, [3, 4])
-    print(f"Noise ratio: {np.round(ratio[:,5:8], 2)}")
+
+    
+    for level in [1, 2, 3, 5, 10]:
+        damaged, mask = corrupt_noise(arr, [3, 4], 1000, 1600, level=level, seed=0)
+        print(level, evaluate(damaged, mask))
+
+    damaged, mask = corrupt_flatline(arr, [3, 4], 1000, 1600)
+    print(evaluate(damaged, mask))
 
     damaged, mask = corrupt_jump(arr, [3, 4], 1000, 1600, size=3)
-    ratio = get_ratio(arr, damaged, [3, 4])
-    print(f"Jump ratio: {np.round(ratio[:,5:8], 2)}")
+    print(evaluate(damaged, mask))
 
-    clean_var = window_variance(arr)
-    print(arr[3].var())                  # variance of the whole channel
-    print(np.median(clean_var[3]))       # typical window variance
-    print(clean_var[3, 5:8])             # the three windows you damaged
+
+    var_score, mean_score = window_scores(arr)
+    print(f"Var Score: {np.percentile(var_score, [1, 50, 99])}")
+    print(f"Mean Score: {np.percentile(mean_score, [1, 50, 99])}")
+
+
+    # damaged, mask = corrupt_noise(arr, [3, 4], 1000, 1600, level=3, seed=0)
+    # diff = get_diff(arr, damaged)
+    # print(f"Noise diff: {np.round(diff, 2)}")
+
+    # damaged, mask = corrupt_jump(arr, [3, 4], 1000, 1600, size=3)
+    # diff = get_diff(arr, damaged)
+    # print(f"Jump diff: {np.round(diff, 2)}")
+
+    # clean_mean = window_mean(arr)
+    # print(arr[3].mean())                 # mean of the whole channel
+    # print(np.median(clean_mean[3]))      # typical window mean
+    # print(clean_mean[3, 5:8])            # the three windows you damaged
 
     # damaged, mask = corrupt_flatline(arr, [3, 4], 1000, 1600)
     # labels = window_labels(mask, win=200)
