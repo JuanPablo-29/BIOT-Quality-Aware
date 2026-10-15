@@ -17,17 +17,13 @@ class Trial:
         events, event_id = mne.events_from_annotations(raw)
         raw.set_channel_types({'EOG-left':'eog', 'EOG-right':"eog", 'EOG-central':'eog'})
         raw.pick('eeg')
+        #raw.filter(l_freq=4., h_freq=40.)
+        self.arr = raw.get_data()
         self.arr = raw.get_data()
         mask = events[:,2] == event_id['768']
         start = events[mask]
         self.start = start[:,0]
         self.start = np.round(self.start * 4/5).astype(int)
-
-        # print(raw)
-        # print(raw.info)
-        # print(raw.ch_names)
-        # for i in [0, 7, 9, 11, 19]:
-        #     print(i, CH_NAMES[i], raw.ch_names[i])
 
         labels = sio.loadmat(file + '.mat')
         class_labels = labels['classlabel']
@@ -36,9 +32,6 @@ class Trial:
         self.sampling_rate = 200
         self.offset = int(2 * self.sampling_rate)
         self.window = int(4 * self.sampling_rate)
-
-        print(len(self.start))
-        print(len(self.class_labels))
 
 
     def resample(self, a):
@@ -58,18 +51,8 @@ class Trial:
         return self.class_labels - 1
 
 if __name__ == "__main__":
-    # E_trials = {}
-    # T_trials = {}
-    # for i in range(9):
-    #     E_trials[i+1] = Trial(f"data/A0{i+1}E")
-    #     T_trials[i+1] = Trial(f"data/A0{i+1}T")
-    #print(E_trials[1].get_trials().shape)
-
     t = Trial("data/A01T")
     x = t.get_trials()
     y = t.get_labels()
     print(x.shape, x.min(), x.max())
     print(np.unique(y))
-    # encoded = t.get_encoded_labels()
-    # print(t.class_labels[:5])
-    # print(encoded[:5])
