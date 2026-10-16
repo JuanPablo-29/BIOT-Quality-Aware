@@ -17,7 +17,7 @@ def accuracy(model, t):
 def run_conditions(model, file):
     t = Trial(file)
     clean = t.arr
-    damaged, mask = corrupt_random("noise", clean, n_segments=12000, level = 5)
+    damaged, mask = corrupt_random("jump", clean, n_segments=12000, size = 5)
     flag = detect(*window_scores(damaged))
     flag = np.repeat(flag, 200, axis=1)
     missing = damaged.shape[1] - flag.shape[1]
@@ -45,7 +45,7 @@ if __name__ == "__main__":
         model.eval()
         all_results.append(run_conditions(model, f"data/A0{i}E"))
     print(np.mean(all_results, axis=0))
-    np.save("results/noise5.npy", np.array(all_results))
+    np.save("results/jump5.npy", np.array(all_results))
    
 
     

@@ -1,5 +1,7 @@
 import numpy as np
 from trial import Trial
+from scipy.ndimage import median_filter
+
 def to_windows(arr, win=200):
     """
     Splits the input array into non-overlapping windows of specified size.
@@ -25,6 +27,12 @@ def window_mean(arr, win=200):
     mean = to_windows(arr, win=win).mean(axis=-1)
     return mean
 
+def window_biggest_jump(arr, win=200):
+    w = to_windows(arr,win=win)
+    biggest_jump = np.abs(np.diff(w, axis=-1)).max(axis=-1)
+    return biggest_jump
+
+
 def get_diff(arr, damaged):
     clean_mean = window_mean(arr)
     dmg_mean = window_mean(damaged)
@@ -40,6 +48,7 @@ def window_scores(arr, win=200):
     mean = window_mean(arr, win=win)
     typical = np.sqrt(np.median(var, axis=-1, keepdims=True))
     mean_score = abs(mean - np.median(mean, axis=-1, keepdims=True)) / typical
+
     return var_score, mean_score
 
 def window_labels(mask, win=200):
@@ -51,11 +60,28 @@ def detect(var_score, mean_score):
     # A window is considered corrupted if its variance score is less than 0.1 (flatline) or greater than 10 (noise), or if its mean score is greater than 3 (jump).
     return (var_score < 0.1) | (var_score > 9) | (mean_score > 2)
 
+def window_features(arr, win=200):
+    var = window_variance(arr, win=win)
+    typical = np.sqrt(np.median(var,axis=-1, keepdims=True))
+
+    var_score, _ = window_scores(arr, win=win)
+
+    mean = window_mean(arr, win=win)
+    baseline = median_filter(mean, size=(1,21), mode="nearest")
+    mean_score = np.abs(mean-baseline) / typical
+
+    biggest_jump = window_biggest_jump(arr,win=win)
+    jump_score = biggest_jump / typical
+    return np.stack([var_score, mean_score, jump_score],axis=-1)
+
 if __name__ == "__main__":
     t = Trial("data/A01T")   # your path
     arr = t.arr
 
+    
 
-    var_score, mean_score = window_scores(arr)
-    print(f"Var Score: {np.percentile(var_score, [1, 50, 99])}")
-    print(f"Mean Score: {np.percentile(mean_score, [1, 50, 99])}")
+
+
+    # var_score, mean_score = window_scores(arr)
+    # print(f"Var Score: {np.percentile(var_score, [1, 50, 99])}")
+    # print(f"Mean Score: {np.percentile(mean_score, [1, 50, 99])}")
