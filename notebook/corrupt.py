@@ -18,7 +18,7 @@ def corrupt_flatline(arr, channels, start, end):
     numpy.ndarray: The corrupted array with specified channels flatlined between start and end indices.
     """
     corrupted_arr = arr.copy()
-    corrupted_arr[channels, start:end] = 0
+    corrupted_arr[channels, start:end] = arr[channels, start][:,None]
     mask = np.zeros(arr.shape, dtype=bool)
     mask[channels, start:end] = True
     return corrupted_arr, mask
