@@ -44,6 +44,7 @@ class Trial:
             a = s + self.offset
             x = self.arr[:, a : a + self.window]
             scale = np.quantile(np.abs(x), 0.95, axis=-1, keepdims=True)
+            scale[scale==0] = 1
             trials[i] = x / scale
         return trials
 
