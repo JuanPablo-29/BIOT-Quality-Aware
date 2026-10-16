@@ -1,6 +1,6 @@
 import numpy as np
 from trial import Trial
-from detector import window_variance, detect, window_scores, window_labels
+from detector import window_variance, detect, window_scores, window_labels, to_windows
 
 
 
@@ -23,7 +23,7 @@ def corrupt_flatline(arr, channels, start, end):
     mask[channels, start:end] = True
     return corrupted_arr, mask
 
-def corrupt_noise(arr, channels, start, end, level, seed=None):
+def corrupt_noise(arr, channels, start, end, level, seed=None, scale=None):
     """
     Corrupts the given channels in the array by adding Gaussian noise between the specified start and end indices.
 
@@ -40,14 +40,15 @@ def corrupt_noise(arr, channels, start, end, level, seed=None):
     """
     rng = np.random.default_rng(seed)
     corrupted_arr = arr.copy()
-    normal_size = np.sqrt(np.median(window_variance(arr)[channels], axis=1))
-    noise = rng.normal(0, level * normal_size[:,None], size=(len(channels), end - start))
+    if scale is None:
+        scale = np.sqrt(np.median(window_variance(arr)[channels], axis=1))
+    noise = rng.normal(0, level * scale[:,None], size=(len(channels), end - start))
     corrupted_arr[channels, start:end] += noise
     mask = np.zeros(arr.shape, dtype=bool)
     mask[channels, start:end] = True
     return corrupted_arr, mask
 
-def corrupt_jump(arr, channels, start, end, size):
+def corrupt_jump(arr, channels, start, end, size, scale=None):
     """
     Corrupts the given channels in the array by adding a jump (step change) between the specified start and end indices.
 
@@ -61,9 +62,10 @@ def corrupt_jump(arr, channels, start, end, size):
     Returns:
     numpy.ndarray: The corrupted array with specified channels having a jump between start and end indices.
     """
+    if scale is None:
+        scale = np.sqrt(np.median(window_variance(arr)[channels], axis=1))
     corrupted_arr = arr.copy()
-    normal_size = np.sqrt(np.median(window_variance(arr)[channels], axis=1))
-    corrupted_arr[channels, start:end] += normal_size[:,None] * size
+    corrupted_arr[channels, start:end] += scale[:,None] * size
     mask = np.zeros(arr.shape, dtype=bool)
     mask[channels, start:end] = True
     return corrupted_arr, mask
@@ -75,27 +77,68 @@ def evaluate(damaged, mask):
     false_alarm = (flag & ~labels).sum() / (~labels).sum()
     return recall, false_alarm
 
+def corrupt_random(kind, arr, n_segments, level=3, size=3, seed=0, win=200):
+    rng = np.random.default_rng(seed)
+    chans = arr.shape[0]
+    n_win = arr.shape[1] // win
+
+    cells = rng.choice((chans * n_win), size=n_segments, replace = False)
+    damaged = arr.copy()
+    mask = np.zeros(arr.shape, dtype=bool)
+    typical = np.sqrt(np.median(window_variance(arr), axis=1))   # one number per channel
+    for cell in cells:
+        ch, w = divmod(cell, n_win)
+        start = w * win
+        end = start + win
+        piece = arr[[ch], start:end]
+        match kind:
+            case "flatline":
+                d, _ = corrupt_flatline(piece, [0], 0, win)
+            case "noise":
+                d, _ = corrupt_noise(piece, [0], 0, win, level, seed=cell, scale=typical[[ch]])
+            case "jump":
+                d, _ = corrupt_jump(piece, [0], 0, win, size, scale=typical[[ch]])
+            case _:
+                raise ValueError(f"unknown kind: {kind}")
+        damaged[ch, start:end] = d[0]
+        mask[ch, start:end] = True
+    return damaged, mask
+
+
+
 if __name__ == "__main__":
     # pass
     t = Trial("data/A01T")   # your path
     arr = t.arr
 
+    for level in [1, 2, 3, 5, 10]:
+        damaged, mask = corrupt_random("noise", arr, 300, level=level, seed=1)
+        print(f"Level: {level, evaluate(damaged, mask)}")
+
+    damaged, mask = corrupt_random("flatline", arr, 300, seed=1)
+    print(f"Flatline: {evaluate(damaged, mask)}")
+
+    for size in [0.5, 1, 2, 3, 5]:
+        damaged, mask = corrupt_random("jump", arr, 300, size=size, seed=1)
+        print(f"Size: {size, evaluate(damaged,mask)}")
+
+
 
     
-    for level in [1, 2, 3, 5, 10]:
-        damaged, mask = corrupt_noise(arr, [3, 4], 1000, 1600, level=level, seed=0)
-        print(level, evaluate(damaged, mask))
+    # for level in [1, 2, 3, 5, 10]:
+    #     damaged, mask = corrupt_noise(arr, [3, 4], 1000, 1600, level=level, seed=0)
+    #     print(level, evaluate(damaged, mask))
 
-    damaged, mask = corrupt_flatline(arr, [3, 4], 1000, 1600)
-    print(evaluate(damaged, mask))
+    # damaged, mask = corrupt_flatline(arr, [3, 4], 1000, 1600)
+    # print(evaluate(damaged, mask))
 
-    damaged, mask = corrupt_jump(arr, [3, 4], 1000, 1600, size=3)
-    print(evaluate(damaged, mask))
+    # damaged, mask = corrupt_jump(arr, [3, 4], 1000, 1600, size=3)
+    # print(evaluate(damaged, mask))
 
 
-    var_score, mean_score = window_scores(arr)
-    print(f"Var Score: {np.percentile(var_score, [1, 50, 99])}")
-    print(f"Mean Score: {np.percentile(mean_score, [1, 50, 99])}")
+    # var_score, mean_score = window_scores(arr)
+    # print(f"Var Score: {np.percentile(var_score, [1, 50, 99])}")
+    # print(f"Mean Score: {np.percentile(mean_score, [1, 50, 99])}")
 
 
     # damaged, mask = corrupt_noise(arr, [3, 4], 1000, 1600, level=3, seed=0)
