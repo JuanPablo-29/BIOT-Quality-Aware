@@ -72,7 +72,20 @@ def window_features(arr, win=200):
 
     biggest_jump = window_biggest_jump(arr,win=win)
     jump_score = biggest_jump / typical
-    return np.stack([var_score, mean_score, jump_score],axis=-1)
+
+    link_score = window_link(arr, win=win)
+    return np.stack([var_score, mean_score, jump_score, link_score],axis=-1)
+
+def window_link(arr, win=200):
+    w = to_windows(arr, win=win)
+    ref = np.median(w, axis=0)
+
+    wc = w - w.mean(axis=-1, keepdims=True)
+    rc = ref - ref.mean(axis=-1, keepdims=True)
+
+    num = (wc * rc).sum(axis=-1)
+    den = np.sqrt((wc**2).sum(axis=-1)) * np.sqrt((rc**2).sum(axis=-1))
+    return np.abs(num / den + 1e-12)
 
 if __name__ == "__main__":
     t = Trial("data/A01T")   # your path

@@ -111,16 +111,19 @@ if __name__ == "__main__":
     t = Trial("data/A01T")   # your path
     arr = t.arr
 
-    for level in [1, 2, 3, 5, 10]:
-        damaged, mask = corrupt_random("noise", arr, 300, level=level, seed=1)
-        print(f"Level: {level, evaluate(damaged, mask)}")
 
-    damaged, mask = corrupt_random("flatline", arr, 300, seed=1)
-    print(f"Flatline: {evaluate(damaged, mask)}")
 
-    for size in [0.5, 1, 2, 3, 5]:
-        damaged, mask = corrupt_random("jump", arr, 300, size=size, seed=1)
-        print(f"Size: {size, evaluate(damaged,mask)}")
+
+    # for level in [1, 2, 3, 5, 10]:
+    #     damaged, mask = corrupt_random("noise", arr, 300, level=level, seed=1)
+    #     print(f"Level: {level, evaluate(damaged, mask)}")
+
+    # damaged, mask = corrupt_random("flatline", arr, 300, seed=1)
+    # print(f"Flatline: {evaluate(damaged, mask)}")
+
+    # for size in [0.5, 1, 2, 3, 5]:
+    #     damaged, mask = corrupt_random("jump", arr, 300, size=size, seed=1)
+    #     print(f"Size: {size, evaluate(damaged,mask)}")
 
 
 

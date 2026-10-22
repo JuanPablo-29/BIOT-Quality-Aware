@@ -9,7 +9,7 @@ from corrupt import corrupt_random
 
 def make_table(clean, kind, level=5, size=5):
     damaged, mask = corrupt_random(kind, clean, n_segments=3000, size=size, level=level)
-    feat = window_features(damaged).reshape(-1,3)
+    feat = window_features(damaged).reshape(-1,4)
     key = window_labels(mask).reshape(-1)
     return feat, key
 
